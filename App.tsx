@@ -108,8 +108,24 @@ export default function App() {
   
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   
-  // Image & Layout State
+  // Image & Layout State// Helper: determine if current mode uses a 'big' slot
+  const isBigLayout = (mode: LayoutMode) =>
+    mode === 'left-big' || mode === 'right-big' || mode === 'top-big' || mode === 'bottom-big';
+
   const [images, setImages] = useState<ImageState[]>([]);
+  // Big Image selection for 'big' layouts
+  const [bigImageId, setBigImageId] = useState<string | null>(null);
+  // Keep bigImageId valid when image list changes
+  useEffect(() => {
+    if (images.length === 0) {
+      if (bigImageId !== null) setBigImageId(null);
+      return;
+    }
+    if (!bigImageId || !images.some(i => i.id === bigImageId)) {
+      setBigImageId(images[0].id);
+    }
+  }, [images]);
+  
   const [globalZoom, setGlobalZoom] = useState(1);
   const [gap, setGap] = useState(16);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
@@ -332,6 +348,7 @@ export default function App() {
             });
             break;
         }
+        
         case 'left-big':
         case 'right-big': {
             const isLeftBig = layoutMode === 'left-big';
@@ -339,10 +356,18 @@ export default function App() {
                 const bigX = isLeftBig ? exportGapX : currentWidth / 2 + exportGapX / 2;
                 const bigW = Math.max(0, currentWidth / 2 - exportGapX * 1.5);
                 const bigH = Math.max(0, currentHeight - exportGapY * 2);
-                drawImage(loadedGridImages[0], bigX, exportGapY, bigW, bigH);
+                // Determine selected big image
+                const bigIdx = images.findIndex(i => i.id === (bigImageId ?? images[0]?.id));
+                const bigBitmap = bigIdx >= 0 ? imageBitmaps.get(images[bigIdx].id) : loadedGridImages[0];
+                if (bigBitmap) {
+                    drawImage(bigBitmap, bigX, exportGapY, bigW, bigH);
+                }
             }
-            if (loadedGridImages.length > 1) {
-                const gridImages = loadedGridImages.slice(1);
+            if (images.length > 1) {
+                const gridImages = images
+                    .filter((im, idx) => idx !== images.findIndex(i => i.id === (bigImageId ?? images[0]?.id)))
+                    .map(im => imageBitmaps.get(im.id))
+                    .filter((b): b is ImageBitmap => !!b);
                 const cols = Math.max(1, Math.ceil(Math.sqrt(gridImages.length)));
                 const rows = Math.max(1, Math.ceil(gridImages.length / cols));
                 const startX = isLeftBig ? currentWidth / 2 + exportGapX / 2 : exportGapX;
@@ -366,10 +391,18 @@ export default function App() {
                 const bigY = isTopBig ? exportGapY : currentHeight / 2 + exportGapY / 2;
                 const bigW = Math.max(0, currentWidth - exportGapX * 2);
                 const bigH = Math.max(0, currentHeight / 2 - exportGapY * 1.5);
-                drawImage(loadedGridImages[0], exportGapX, bigY, bigW, bigH);
+                // Determine selected big image
+                const bigIdx2 = images.findIndex(i => i.id === (bigImageId ?? images[0]?.id));
+                const bigBitmap2 = bigIdx2 >= 0 ? imageBitmaps.get(images[bigIdx2].id) : loadedGridImages[0];
+                if (bigBitmap2) {
+                    drawImage(bigBitmap2, exportGapX, bigY, bigW, bigH);
+                }
             }
-            if (loadedGridImages.length > 1) {
-                const gridImages = loadedGridImages.slice(1);
+            if (images.length > 1) {
+                const gridImages = images
+                    .filter((im, idx) => idx !== images.findIndex(i => i.id === (bigImageId ?? images[0]?.id)))
+                    .map(im => imageBitmaps.get(im.id))
+                    .filter((b): b is ImageBitmap => !!b);
                 const startY = isTopBig ? currentHeight / 2 + exportGapY / 2 : exportGapY;
                 const gridHeight = Math.max(0, currentHeight / 2 - exportGapY * 1.5);
                 const cols = Math.max(1, Math.ceil(Math.sqrt(gridImages.length)));
@@ -386,6 +419,7 @@ export default function App() {
             }
             break;
         }
+
         case 'single-blur': {
             const bgImages = loadedGridImages.slice(1);
             if (bgImages.length > 0) {
@@ -468,7 +502,7 @@ export default function App() {
       ctx.fillText(layer.text, 0, 0);
       ctx.restore();
     }
-  }, [background, backgroundBitmap, debouncedBgBlur, debouncedBgOpacity, debouncedGap, debouncedGlobalZoom, debouncedMainZoom, imageBitmaps, images, layoutMode, textLayers, viewport.width, viewport.height, watermark, watermarkBitmap]);
+  }, [background, backgroundBitmap, debouncedBgBlur, debouncedBgOpacity, debouncedGap, debouncedGlobalZoom, debouncedMainZoom, imageBitmaps, images, layoutMode, textLayers, viewport.width, viewport.height, watermark, watermarkBitmap, bigImageId]);
   
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -481,7 +515,7 @@ export default function App() {
       debouncedGap, debouncedGlobalZoom, debouncedMainZoom, debouncedBgBlur, debouncedBgOpacity,
       imageBitmaps, watermarkBitmap, backgroundBitmap, viewport.width, viewport.height,
       selectedTextId, drawCanvas
-  ]);
+  , bigImageId]);
   
   useEffect(() => {
     if (window.lucide) window.lucide.createIcons();
@@ -774,6 +808,28 @@ export default function App() {
                         <option value="top-big">Top Big</option>
                         <option value="bottom-big">Bottom Big</option>
                     </select>
+                    {isBigLayout(layoutMode) && images.length > 0 && (
+                      <div className="mt-3">
+                        <label className="block text-xs font-semibold uppercase tracking-wide mb-2 text-gray-700">Big image</label>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                          {images.map(img => (
+                            <button
+                              key={img.id}
+                              type="button"
+                              onClick={() => setBigImageId(img.id)}
+                              className={'relative flex-shrink-0 w-16 h-16 rounded-md border ' + (bigImageId === img.id ? 'border-lime-500 ring-2 ring-lime-400' : 'border-gray-300')}
+                              title={img.name || ('Image ' + img.id)}
+                            >
+                              <img src={img.url} alt={'bigpick-' + img.id} className="w-full h-full object-cover rounded-md"/>
+                              {bigImageId === img.id && (
+                                <span className="absolute bottom-1 right-1 text-[10px] bg-lime-500 text-black rounded px-1">BIG</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                 </div>
             </div>
             <Slider label="Gap" icon="space" value={gap} onChange={e => setGap(Number(e.target.value))} max={100} unit="px" disabled={layoutMode === 'single-blur'}/>
@@ -916,13 +972,25 @@ Text Layers</h2>
               {images.map((img) => (
                 <div
                   key={img.id}
-                  className={`relative group flex-shrink-0 w-28 h-28 rounded-lg overflow-hidden border-2 transition-all duration-200 ${draggedId === img.id ? 'border-lime-500 scale-105' : 'border-transparent'}`}
+                  className={`relative group flex-shrink-0 w-28 h-28 rounded-lg overflow-hidden border-2 transition-all duration-200 ${draggedId === img.id === bigImageId ? 'border-lime-500 scale-105 ring-2 ring-lime-400' : 'border-transparent'}`}
                   draggable
                   onDragStart={() => handleDragStart(img.id)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => handleDropOnImage(img.id)}
                 >
-                  <img src={img.url} alt={`upload-${img.id}`} className="w-full h-full object-cover"/>
+                  
+                  {isBigLayout(layoutMode) && (
+                    <div className="absolute top-1 left-1">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setBigImageId(img.id);}}
+                        className={`px-2 py-1 text-xs rounded-full border transition
+                          ${bigImageId === img.id ? 'bg-lime-500 text-black border-lime-600' : 'bg-black/70 text-white border-white/30 hover:bg-black'}`}>
+                        {bigImageId === img.id ? 'BIG ✓' : 'Make BIG'}
+                      </button>
+                    </div>
+                  )}
+<img src={img.url} alt={`upload-${img.id}`} className="w-full h-full object-cover"/>
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button onClick={(e) => {
                       e.stopPropagation();
@@ -969,3 +1037,6 @@ declare global {
     }
 }
 // NOTE: When removing images, remember to call imageBitmap.close() to free memory.
+  const isBigLayout = (mode: LayoutMode) =>
+    mode === 'left-big' || mode === 'right-big' || mode === 'top-big' || mode === 'bottom-big';
+

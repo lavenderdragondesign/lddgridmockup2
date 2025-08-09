@@ -1,7 +1,21 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: any}> {
+  constructor(props: any) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error: any) { return { error }; }
+  componentDidCatch(error: any, info: any) { console.error('Runtime error:', error, info); }
+  render() {
+    if (this.state.error) {
+      return <div style={{padding:16,fontFamily:'monospace',whiteSpace:'pre-wrap'}}>
+        <h2>💥 App crashed</h2>
+        <div>{String(this.state.error)}</div>
+      </div>;
+    }
+    return this.props.children as any;
+  }
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,6 +25,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary><App /></ErrorBoundary>
   </React.StrictMode>
 );
