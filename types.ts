@@ -4,7 +4,9 @@ export type LayoutMode =
   | 'right-big'
   | 'top-big'
   | 'bottom-big'
-  | 'single-blur';
+  | 'single-blur'
+  | 'grid-square'
+  | 'justified';
 
 export interface ImageState {
   id: string;
