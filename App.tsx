@@ -1262,7 +1262,7 @@ Text Layers</h2>
         {/* Buy Me A Coffee Footer */}
         <div className="mt-auto pt-6 border-t border-gray-200 text-center">
             <p className="text-sm text-gray-500 mb-2">Dev. By A. Kessler - Made With ❤️</p>
-            <a href="https://buymeacoffee.com/lavenderdragondesigns" target="_blank" rel="noopener noreferrer">
+            <a href="https://buymeacoffee.com/lavenderdragondesign" target="_blank" rel="noopener noreferrer">
                 <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" className="h-12 w-auto inline-block hover:scale-105 transition-transform" />
             </a>
         </div>
